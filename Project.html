@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>FilmEpoch | Home Chart</title>
+    <link rel="stylesheet" href="Project.css">
+    <script src="https://d3js.org/d3.v6.js"></script>
+    <style>
+        #selectButton {
+            font-family: 'Times New Roman', Times, serif;
+            height: 23px;
+            cursor: pointer;
+        }
+
+        .option {
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .allMoviesButton {
+            display: inline-block;
+            font-family: 'Times New Roman', Times, serif;
+            background-color: #f9f9f9;
+            border: 0px;
+            border-radius: 50px;
+            height: 30px;
+            width: 80px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .allMoviesButton:active {
+            background-color: #e1e1e1;
+            box-shadow: inset 0 1px 0 #ccc, 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .checkbox-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+
+        .checkbox {
+            cursor: pointer;
+        }
+
+        #selectAll {
+            cursor: pointer;
+        }
+
+        #unselectAll {
+            cursor: pointer;
+        }
+
+        .hoverbox {
+            position: absolute;
+            text-align: left;
+            width: 100px;
+            height: 65px;
+            background: #eeeeee;
+            pointer-events: auto;
+            padding: 5px;
+            opacity: 0;
+        }
+
+        .hoverbox .hoverLink {
+            float: right;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="button-container"></div>
+
+    <div class="selectionTitle"></div>
+    <div class="select-container">
+        <select id="selectButton"></select>
+    </div>
+
+    <div class="switchTitle"></div>
+    <div class="switch-container">
+        <label class="switch">
+            <input type="checkbox" id="toggle">
+            <span class="slider round"></span>
+        </label>
+    </div>
+
+    <div class="checkboxTitle"></div>
+    <div class="checkbox-container"></div>
+
+    <div id="my_dataviz"></div>
+
+    <script>
+
+        // #region Basic svg settings
+        // Set the dimensions and margins of the graph
+        const margin = { top: 100, right: 50, bottom: 100, left: 50 },
+            width = 1100 - margin.left - margin.right,
+            height = 650 - margin.top - margin.bottom;
+
+        // Append the svg object to the bodyScale of the page
+        const svg = d3.select("#my_dataviz")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+        // #endregion 
+
+        // Parse data and start drawing
+        d3.csv("Movies.csv").then(function (data) {
+
+            // #region Title
+            const title = svg.append("text")
+                .attr("class", "title")
+                .attr("x", -15)
+                .attr("y", -80)
+                .text("FilmEpoch")
+                .attr("text-anchor", "left")
+                .attr("font-weight", "bold")
+                .attr("font-size", "20px")
+                .attr("fill", "#f9f9f9");
+
+            const subTitle = svg.append("text")
+                .attr("class", "subTitle")
+                .attr("y", -70)
+                .selectAll("tspan")
+                .data(["This graph shows the average IMDb score of movies in different time intervals from", "1927 to 2016. Comparing its average budget, average gross, averge Facebook likes", "and popular movies genres in different forms."])
+                .enter()
+                .append("tspan")
+                .attr("font-size", "13px")
+                .attr("fill", "#cccccc")
+                .attr("x", -13)
+                .attr("dy", 14)
+                .text(d => d);
+            // #endregion
+
+            // #region All movies button
+            d3.select("#button-container")
+                .append("button")
+                .attr("class", "allMoviesButton")
+                .style("position", "absolute")
+                .style("top", "40px")
+                .style("left", "530px")
+                .text("All Movies")
+                .style("font-size", "13px")
+                .on("click", function () {
+                    window.location.href = "allmovies.php";
+                });
+            // #endregion
+
+            // #region Switch title
+            const switchTitle = d3.select(".switchTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "30px")
+                .style("right", "60px")
+                .style("color", "#f9f9f9")
+                .text("Budget/Gross Switch");
+
+            let switchLabel1 = d3.select(".switchTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "63px")
+                .style("right", "80px")
+                .style("color", "#a7a7a7")
+                .style("font-size", "15px")
+                .text("Budget");
+
+            let switchLabel2 = d3.select(".switchTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "63px")
+                .style("right", "150px")
+                .style("color", "#2196F3")
+                .style("font-size", "15px")
+                .style("opacity", 0)
+                .text("Gross");
+            // #endregion
+
+            // #region Selection button
+            // List of opption button
+            const optionButton = ["Default", "5-year Scale", "10-year Scale", "15-year Scale", "30-year Scale", "45-year Scale"]
+
+            // Add the options to the button
+            d3.select("#selectButton")
+                .style("position", "fixed")
+                .style("top", "138px")
+                .style("right", "70px")
+                .style("width", "125px")
+                .style("heigth", "25px")
+                .selectAll('myOptions')
+                .data(optionButton)
+                .enter()
+                .append('option')
+                .text(function (d) { return d; });
+            // #endregion
+
+            // #region Selection title
+            const selectionTitle = d3.select(".selectionTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "110px")
+                .style("right", "55px")
+                .style("color", "#f9f9f9")
+                .text("Time Period Selection");
+            // #endregion
+
+            // #region Checkbox title
+            const checkboxTitle = d3.select(".checkboxTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "280px")
+                .style("right", "90px")
+                .style("color", "#f9f9f9")
+                .text("Genre Checklist");
+
+            const checkboxSubtitle = d3.select(".checkboxTitle")
+                .append("text")
+                .style("position", "fixed")
+                .style("top", "303px")
+                .style("right", "24px")
+                .style("color", "#f9f9f9")
+                .style("font-size", "12px")
+                .text("(Movie can has more than 1 gerne)");
+            // #endregion
+
+            // #region Checkbox
+            var genres = ['Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family', 'Fantasy', 'Film-Noir', 'History', 'Horror', 'Music', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western'];
+            var genres_sort = genres.sort()
+            var uniqueGenres = new Set(genres_sort);
+            var checkboxContainer = d3.select(".checkbox-container");
+
+            checkboxContainer
+                .style("position", "fixed")
+                .style("top", "325px")
+                .style("right", "15px")
+                .style("width", "180px")
+                .style("height", "200px");
+
+            checkboxContainer.selectAll("input")
+                .data(Array.from(uniqueGenres))
+                .enter()
+                .append("div")
+                .style("width", "90px")
+                .style("height", "20px")
+                .each(function (d) {
+                    var container = d3.select(this);
+                    var checkbox = container.append("input")
+                        .attr("class", "checkbox")
+                        .attr("type", "checkbox")
+                        .attr("id", "genre_" + d)
+                        .attr("name", "genre")
+                        .attr("value", d)
+                        .attr("checked", true);
+
+                    container.append("label")
+                        .attr("for", "genre_" + d)
+                        .text(d)
+                        .style("font-size", "12px")
+                        .style("color", "#cccccc");
+                });
+
+            checkboxContainer.append("div")
+                .style("width", "22px")
+                .style("height", "20px")
+                .append("input")
+                .attr("type", "checkbox")
+                .attr("id", "selectAll")
+                .attr("checked", true);
+
+            checkboxContainer.append("label")
+                .text("Select All")
+                .style("font-size", "12px")
+                .style("color", "#cccccc")
+                .style("padding-top", "3px")
+                .style("padding-right", "21px");
+
+            checkboxContainer.append("div")
+                .style("width", "22px")
+                .style("height", "20px")
+                .append("input")
+                .attr("type", "checkbox")
+                .text("Unselect All")
+                .attr('id', 'unselectAll');
+
+            checkboxContainer.append("label")
+                .text("Unselect All")
+                .style("font-size", "12px")
+                .style("color", "#cccccc")
+                .style("padding-top", "3px");
+            // #endregion
+
+            // #region Group data 
+            // By 10 years
+            const startYear = 1927;
+            const endYear = d3.max(data, d => d.title_year);
+            const groupCounts = [];
+
+            for (let year = startYear; year <= endYear; year += 10) {
+                const groupStart = year;
+                const groupEnd = year + 9;
+
+                const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                groupCounts.push({
+                    startYear: groupStart,
+                    endYear: groupEnd,
+                    count: groupData.length
+                });
+            }
+
+            /* Compute the amount of data of each group, just for checking
+            groupCounts.forEach(group => {
+                console.log(`From ${group.startYear} to ${group.endYear}: ${group.count} data entries`);
+            });*/
+
+            // #endregion
+
+            // #region Compute values 
+            // Compute the x coordinate of each group
+            const groupMidYear = groupCounts.map(group => Math.floor((group.startYear + group.endYear) / 2));
+
+            // Compute the y coordinate of each group
+            const groupAvgScores = groupCounts.map(group => {
+                const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                return d3.mean(groupData, d => d.imdb_score);
+            });
+
+            // Compute average budget of each group
+            const groupAvgBudgets = groupCounts.map(group => {
+                const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                return d3.mean(groupData, d => d.budget);
+            });
+
+            // Compute average like of each group
+            const groupAvgLikes = groupCounts.map(group => {
+                const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                return d3.mean(groupData, d => d.movie_facebook_likes);
+            });
+            // #endregion
+
+            // #region Scale of xAxis
+            const xScale = d3.scaleLinear()
+                .range([0, width])
+                .domain([d3.min(data, d => d.title_year), d3.max(data, d => d.title_year)]);
+
+            /*
+            // Add x axis, not needed
+            const xAxis = svg.append("g")
+                .attr("transform", `translate(0, ${height/2})`)
+                .call(d3.axisBottom(xScale));
+
+            xAxis.selectAll("path")
+                .style("stroke", "#f9f9f9");
+            xAxis.selectAll("line")
+                .style("stroke", "#f9f9f9");
+            xAxis.selectAll("text")
+                .style("fill", "#f9f9f9");
+            */
+            // #endregion
+
+            // #region Scale of yAxis
+            const yScale = d3.scaleLinear()
+                .range([height, 10])
+                .domain([0, 10]);
+
+            const yAxis = svg.append("g")
+                .call(d3.axisLeft(yScale))
+                .attr("font-size", "11px");
+
+            yAxis.selectAll("path")
+                .style("stroke", "#f9f9f9");
+            yAxis.selectAll("line")
+                .style("stroke", "#f9f9f9");
+            yAxis.selectAll("text")
+                .style("fill", "#f9f9f9");
+
+            // Add y-axis label for IMDb score
+            svg.append("text")
+                .attr("class", "y-label")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2) //我不理解
+                .attr("y", -30) //我不理解
+                .style("text-anchor", "middle")
+                .attr("fill", "#ffffff")
+                .text("IMDb Score");
+            // #endregion
+
+            // #region Scale of circles
+            // R scale of the dots
+            const radiusScale = d3.scaleLinear()
+                .domain([0, 122520843])
+                .range([2, 40]);
+
+            // Color scale of the dots
+            const colorScale = d3.scaleLinear()
+                .domain([0, 7000, 14000, 21000, 28000, 51000])
+                .range(["#E1F5FE", "#64B5F6", "#2196F3", "#1976D2", "#0D47A1"]);
+            // #endregion
+
+            // #region Horizontal line: average imdb score
+            const averageScore = d3.mean(data, d => d.imdb_score);
+
+            averageLine = svg.append("line")
+                .attr("x1", 0)
+                .attr("y1", yScale(averageScore))
+                .attr("x2", width)
+                .attr("y2", yScale(averageScore))
+                .style("stroke", "#f9f9f9")
+                .style("stroke-dasharray", "5, 5");
+
+            let averageText = svg.append("text")
+                .attr("x", 10)
+                .attr("y", yScale(averageScore) + 20)
+                .text("Average Score: " + averageScore.toFixed(2))
+                .style("font-size", "12px")
+                .attr("fill", "#cccccc");
+            // #endregion
+
+            // #region Vertical line: mid year of each group
+            const yearLine = svg.append("g")
+                .selectAll("line")
+                .data(groupMidYear)
+                .join("line")
+                .attr("class", "yearLine")
+                .attr("x1", d => xScale(d))
+                .attr("y1", 10)
+                .attr("x2", d => xScale(d))
+                .attr("y2", height / 2)
+                .attr("stroke", "#7a7a7a")
+                .attr("stroke-width", 1)
+                .attr("stroke-dasharray", "5 5");
+            // #endregion
+
+            // #region Draw time label, connecting line
+            // Add x label for each time period. Use groupMidYear, groupAvgScores & radiusScale, so must be declare after those const 
+            const timeLabel = svg.append("g")
+                .selectAll("text")
+                .data(groupCounts)
+                .join("text")
+                .attr("class", "timeLabel")
+                .attr("x", (d, i) => xScale(groupMidYear[i]))
+                .attr("y", (d, i) => yScale(groupAvgScores[i]) - radiusScale(groupAvgBudgets[i]) - 10)
+                .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("fill", "#f9f9f9");
+
+            // Add lines connecting each dots
+            const lines = svg.append("g")
+                .selectAll("line")
+                .data(groupCounts)
+                .join("line")
+                .attr("class", "connectingLine")
+                .attr("x1", (d, i) => xScale(groupMidYear[i]))
+                .attr("y1", (d, i) => yScale(groupAvgScores[i]))
+                .attr("x2", (d, i) => {
+                    if (i < groupCounts.length - 1) {
+                        return xScale(groupMidYear[i + 1]);
+                    } else {
+                        return xScale(groupMidYear[i]);
+                    }
+                })
+                .attr("y2", (d, i) => {
+                    if (i < groupCounts.length - 1) {
+                        return yScale(groupAvgScores[i + 1]);
+                    } else {
+                        return yScale(groupAvgScores[i]);
+                    }
+                })
+                .attr("stroke", "#cccccc")
+                .attr("stroke-width", 1);
+            // #endregion
+
+            // #region Movie dots (Not shown)
+            /* 
+            // Add dots (5000 data points, for testing)
+            svg.append("g")
+                .selectAll("dot")
+                .data(data)
+                .join("circle")
+                .attr("cx", function (d) { return xScale(d.title_year); })
+                .attr("cy", function (d) { return yScale(d.imdb_score); })
+                .attr("r", 1)
+                .attr("fill", "#f9f9f9");
+            */
+            // #endregion
+
+            // #region Draw circles
+            // Add dots
+            const dots = svg.append("g")
+                .selectAll("dot")
+                .data(groupCounts)
+                .join("circle")
+                .attr("class", "dot")
+                .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                .attr("r", function (d, i) {
+                    return radiusScale(groupAvgBudgets[i]);
+                })
+                .attr("fill", function (d, i) {
+                    return colorScale(groupAvgLikes[i]);
+                })
+
+            // Add center dots
+            const centerDots = svg.append("g")
+                .selectAll("dot")
+                .data(groupCounts)
+                .join("circle")
+                .attr("class", "centerDot")
+                .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                .attr("r", "1")
+                .attr("fill", "#BBDEFB");
+            // #endregion
+
+            // #region Word cloud 
+            function countGenresFrequency(someData) {
+                let genresFrequency = new Map();
+                someData.forEach(movie => {
+                    let genres = movie.genres.split('|');
+                    genres.forEach(genre => {
+                        genre = genre.trim();
+                        if (genresFrequency.has(genre)) {
+                            genresFrequency.set(genre, genresFrequency.get(genre) + 1);
+                        } else {
+                            genresFrequency.set(genre, 1);
+                        }
+                    });
+                });
+                return new Map([...genresFrequency.entries()].sort((a, b) => b[1] - a[1]));
+            }
+
+            groupCounts.forEach((group, index) => {
+                let groupData = data.filter(movie => movie.title_year >= group.startYear && movie.title_year <= group.endYear);
+                let groupGenresFrequency = countGenresFrequency(groupData);
+                let midYear = groupMidYear[index];
+                let offsetY = 15;
+                let maxFrequency = Array.from(groupGenresFrequency.values())[0];
+                groupGenresFrequency.forEach((count, genre) => {
+                    let fontSize = 4 + 10 * (count / maxFrequency);
+                    svg.append("text")
+                        .attr("class", "wordCloud")
+                        .attr("x", xScale(midYear))
+                        .attr("y", height / 2 + offsetY)
+                        .text(`${genre}`)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", fontSize + "px")
+                        .attr("fill", "#a7a7a7");
+                    offsetY += fontSize + 2;
+                });
+            });
+            // #endregion
+
+            // #region Color legend
+            // Add legend
+            const legend = svg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${width - 400},${height + 50})`); // Adjust position as needed
+
+            const legendWidth = 350;
+            const legendHeight = 15;
+            // Define color ranges and corresponding color values
+            const colorRanges = [
+                { range: [0, 7000], color: "#E3F2FD" },
+                { range: [7000, 14000], color: "#64B5F6" },
+                { range: [14000, 21000], color: "#2196F3" },
+                { range: [21000, 28000], color: "#1976D2" },
+                { range: [28000, 35000], color: "#1565C0" }
+            ];
+
+            // Append rectangles for each color range
+            legend.selectAll("rect")
+                .data(colorRanges)
+                .enter().append("rect")
+                .attr("x", (d, i) => i * legendWidth / colorRanges.length)
+                .attr("y", 0)
+                .attr("width", legendWidth / colorRanges.length)
+                .attr("height", legendHeight)
+                .style("fill", d => d.color)
+                .attr("stroke", "#a7a7a7");
+
+
+            // Add legend title
+            legend.append("text")
+                .attr("x", -1)
+                .attr("y", -15)
+                .style("font-size", "15px")
+                .attr("text-anchor", "head")
+                .attr("fill", "#f9f9f9")
+                .text("Facebook Likes");
+
+            // Add legend ticks
+            const legendScale = d3.scaleLinear()
+                .domain([0, 35000])
+                .range([0, legendWidth]);
+
+            const legendAxis = d3.axisBottom(legendScale)
+                .tickValues([0, 7000, 14000, 21000, 28000, 35000])
+                .tickFormat(d3.format(".0f"));
+
+            const legendTicks = legend.append("g")
+                .attr("class", "legend-axis")
+                .attr("transform", `translate(0,${legendHeight})`)
+                .attr("fill", "#a7a7a7")
+                .call(legendAxis);
+
+            // Change color of legend ticks
+            legendTicks.selectAll("text")
+                .attr("fill", "#a7a7a7")
+                .attr("font-size", "12px");
+
+            legendTicks.selectAll("line")
+                .attr("stroke", "#a7a7a7");
+
+            legendTicks.select(".domain")
+                .attr("stroke", "#a7a7a7");
+
+            // #endregion
+
+            // #region Size legend
+            // Define the legend data
+            const legendData = [50000000, 120000000, 190000000, 250000000];
+
+            const sizeLegend = svg.append("g")
+                .attr("class", "sizeLegend")
+                .attr("transform", `translate(50, ${height + 50})`); // Adjust position as needed
+
+            // Add lines connecting circles, before the circles to have the circle on top 
+            const sizeLines = sizeLegend.selectAll("line")
+                .data(legendData.slice(0, -1))
+                .enter()
+                .append("line")
+                .attr("x1", (d, i) => ((i + 1) * 70) + radiusScale(legendData[i]) / 3.5)
+                .attr("y1", 10)
+                .attr("x2", (d, i) => ((i + 2) * 70) - radiusScale(legendData[i + 1]) / 3.5)
+                .attr("y2", 10)
+                .attr("stroke", "#a7a7a7")
+
+            // Add circles 
+            const sizeCircles = sizeLegend.selectAll("circle")
+                .data(legendData)
+                .enter()
+                .append("circle")
+                .attr("cx", (d, i) => (i + 1) * 70)
+                .attr("cy", 10)
+                .attr("r", d => radiusScale(d) / 3.5)
+                .style("fill", "#2196F3")
+
+            // Add legend title
+            sizeLegend.append("text")
+                .attr("id", "sizeLegendTitle1")
+                .attr("x", 170)
+                .attr("y", -15)
+                .style("font-size", "15px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .text("Budget");
+
+            // Add legend title
+            sizeLegend.append("text")
+                .attr("id", "sizeLegendTitle2")
+                .attr("x", 170)
+                .attr("y", -50)
+                .style("font-size", "15px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#f9f9f9")
+                .attr("opacity", "0")
+                .text("Gross");
+
+            // Add legend subtitle
+            sizeLegend.append("text")
+                .attr("x", 180)
+                .attr("y", 47)
+                .style("font-size", "12px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#a7a7a7")
+                .text("(The legend is 25% of actual size.)");
+
+            // Add min legend label1
+            sizeLegend.append("text")
+                .attr("y", -8)
+                .selectAll("tspan")
+                .data(["Size of Value", "50000000"])
+                .enter()
+                .append("tspan")
+                .attr("class", "minValue1")
+                .attr("font-size", "13px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#a7a7a7")
+                .attr("x", 20)
+                .attr("dy", 15)
+                .text(d => d);
+
+            // Add max legend label1
+            sizeLegend.append("text")
+                .attr("y", -8)
+                .selectAll("tspan")
+                .data(["Size of Value", "250000000"])
+                .enter()
+                .append("tspan")
+                .attr("class", "maxValue1")
+                .attr("font-size", "13px")
+                .attr("text-anchor", "middle")
+                .attr("fill", "#a7a7a7")
+                .attr("x", 350)
+                .attr("dy", 15)
+                .text(d => d);
+
+            // #endregion 
+
+            // #region grossSwitch function
+            function grossSwitch(selectedGroup, isChecked, newData) {
+
+                // #region Year selection
+                const data = newData;
+                const startYear = 1927;
+                const endYear = 2016;
+                const groupCounts = [];
+
+                if (selectedGroup == optionButton[0]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[1]) {
+                    for (let year = startYear; year <= endYear; year += 5) {
+                        const groupStart = year;
+                        const groupEnd = year + 4;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[2]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[3]) {
+                    for (let year = startYear; year <= endYear; year += 15) {
+                        const groupStart = year;
+                        const groupEnd = year + 14;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[4]) {
+                    for (let year = startYear; year <= endYear; year += 30) {
+                        const groupStart = year;
+                        const groupEnd = year + 29;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[5]) {
+                    for (let year = startYear; year <= endYear; year += 45) {
+                        const groupStart = year;
+                        const groupEnd = year + 44;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                }
+                // #endregion
+
+                // #region Compute value
+                // Compute the x coordinate of each group
+                const groupMidYear = groupCounts.map(group => Math.floor((group.startYear + group.endYear) / 2));
+
+                // Compute the y coordinate of each group
+                const groupAvgScores = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.imdb_score);
+                });
+
+                // Compute the average gross of each group
+                const groupAvgGross = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.gross);
+                });
+
+                // Compute average budget of each group
+                const groupAvgBudgets = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.budget);
+                });
+                // #endregion
+
+                // #region Update graph
+                if (isChecked == true) {
+                    d3.selectAll(".dot")
+                        .data(groupCounts)
+                        .transition()
+                        .duration(500)
+                        .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                        .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                        .attr("r", function (d, i) {
+                            return radiusScale(groupAvgGross[i]);
+                        });
+
+                    d3.selectAll(".timeLabel")
+                        .data(groupCounts)
+                        .transition()
+                        .duration(500)
+                        .attr("x", (d, i) => xScale(groupMidYear[i]))
+                        .attr("y", (d, i) => yScale(groupAvgScores[i]) - radiusScale(groupAvgGross[i]) - 10)
+                        .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "11px")
+                        .attr("fill", "#f9f9f9");
+
+                    d3.selectAll("#sizeLegendTitle1")
+                        .transition()
+                        .duration(500)
+                        .attr("y", "10")
+                        .style("opacity", 0)
+
+                    d3.selectAll("#sizeLegendTitle2")
+                        .transition()
+                        .duration(500)
+                        .attr("y", "-15")
+                        .style("opacity", 1)
+                } else {
+                    d3.selectAll(".dot")
+                        .data(groupCounts)
+                        .transition()
+                        .duration(500)
+                        .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                        .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                        .attr("r", function (d, i) {
+                            return radiusScale(groupAvgBudgets[i]);
+                        });
+
+                    d3.selectAll(".timeLabel")
+                        .data(groupCounts)
+                        .transition()
+                        .duration(500)
+                        .attr("x", (d, i) => xScale(groupMidYear[i]))
+                        .attr("y", (d, i) => yScale(groupAvgScores[i]) - radiusScale(groupAvgBudgets[i]) - 10)
+                        .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "11px")
+                        .attr("fill", "#f9f9f9");
+
+                    d3.selectAll("#sizeLegendTitle1")
+                        .transition()
+                        .duration(500)
+                        .attr("y", "-20")
+                        .style("opacity", 1)
+
+                    d3.selectAll("#sizeLegendTitle2")
+                        .transition()
+                        .duration(500)
+                        .attr("y", "-50")
+                        .style("opacity", 0)
+                }
+                // #endregion
+
+                // #region Hover interaction
+                d3.selectAll(".dot")
+                    .on("mouseover", function (event, d) {
+                        const midYearX = xScale((d.startYear + d.endYear) / 2);
+                        const hoverBudget = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverGross = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverFacebook = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverImdb = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const movieCount = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear).length;
+                        console.log(movieCount);
+
+                        const startYear = d.startYear;
+                        const endYear = d.endYear;
+
+                        var checkboxes = document.querySelectorAll(".checkbox-container input[type='checkbox']:checked");
+                        var selectedGenres = [];
+                        checkboxes.forEach(function (checkbox) {
+                            selectedGenres.push(checkbox.value);
+                        });
+                        const genresParam = selectedGenres.map(genre => `genres[]=${encodeURIComponent(genre)}`).join('&')
+
+                        const url = `moviepics.php?startYear=${startYear}&endYear=${endYear}&${genresParam}`;
+
+                        d3.select(this)
+                            .attr("stroke-width", "1px")
+                            .attr("stroke", "#FAFAFA");
+
+                        if (isChecked == false) {
+                            hoverbox
+                                .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                    "<br>Budget: " + d3.mean(hoverBudget, r => r.budget).toFixed(0) +
+                                    "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                    `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                                )
+                                .style("font-size", "11px")
+                                .style("opacity", 0.9)
+                                .style("left", (midYearX + 3) + "px")
+                                .style("top", "110px");
+
+                        } else {
+                            hoverbox
+                                .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                    "<br>Gross: " + d3.mean(hoverGross, r => r.gross).toFixed(0) +
+                                    "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                    `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                                )
+                                .style("font-size", "11px")
+                                .style("opacity", 0.9)
+                                .style("left", (midYearX + 3) + "px")
+                                .style("top", "110px");
+                        }
+                    })
+                    .on("mouseout", function () {
+                        d3.select(this)
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .attr("stroke-width", "0px")
+                            .attr("stroke", "null");
+
+                        hoverbox
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+
+                hoverbox
+                    .on("mouseover", function () {
+                        hoverbox
+                            .transition()
+                            .duration(200)
+                            .style("opacity", 0.9);
+                    })
+                    .on("mouseleave", function () {
+                        hoverbox
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+                // #endregion
+
+            }
+            // #endregion
+
+            // #region yearSelection function
+            function yearSelection(selectedGroup, isChecked, newData) {
+
+                // Update data
+                console.log(newData);
+                const data = newData;
+
+                // #region If selection
+                const startYear = 1927;
+                const endYear = d3.max(data, d => d.title_year);
+                const groupCounts = [];
+
+
+                if (selectedGroup == optionButton[0]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[1]) {
+                    for (let year = startYear; year <= endYear; year += 5) {
+                        const groupStart = year;
+                        const groupEnd = year + 4;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[2]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[3]) {
+                    for (let year = startYear; year <= endYear; year += 15) {
+                        const groupStart = year;
+                        const groupEnd = year + 14;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[4]) {
+                    for (let year = startYear; year <= endYear; year += 30) {
+                        const groupStart = year;
+                        const groupEnd = year + 29;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[5]) {
+                    for (let year = startYear; year <= endYear; year += 45) {
+                        const groupStart = year;
+                        const groupEnd = year + 44;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                }
+                // #endregion
+
+                // #region Compute value
+                // Compute average imdb score
+                const averageScore = d3.mean(data, d => d.imdb_score);
+
+                // Compute the x coordinate of each group
+                const groupMidYear = groupCounts.map(group => Math.floor((group.startYear + group.endYear) / 2));
+
+                // Compute the y coordinate of each group
+                const groupAvgScores = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    const meanScore = d3.mean(groupData, d => d.imdb_score);
+                    return isNaN(meanScore) ? 6.46 : meanScore;
+                });
+
+                // Compute average budget of each group
+                const groupAvgBudgets = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    const meanBudget = d3.mean(groupData, d => d.budget);
+                    return isNaN(meanBudget) ? 0 : meanBudget;
+                });
+
+                // Compute average gross of each group
+                const groupAvgGross = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    const meanGross = d3.mean(groupData, d => d.gross);
+                    return isNaN(meanGross) ? 0 : meanGross;
+                });
+
+                // Compute average like of each group
+                const groupAvgLikes = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    const meanLikes = d3.mean(groupData, d => d.movie_facebook_likes);
+                    return isNaN(meanLikes) ? 0 : meanLikes;
+                });
+                // #endregion
+
+                // #region Draw new graph
+                // Add connecting lines
+                const connectingLine = svg.append("g")
+                    .selectAll("line")
+                    .data(groupCounts)
+                    .join("line")
+                    .attr("class", "connectingLine")
+                    .attr("x1", (d, i) => xScale(groupMidYear[i]))
+                    .attr("y1", yScale(averageScore))
+                    .attr("x2", (d, i) => {
+                        if (i < groupCounts.length - 1) {
+                            return xScale(groupMidYear[i + 1]);
+                        } else {
+                            return xScale(groupMidYear[i]);
+                        }
+                    })
+                    .attr("y2", yScale(averageScore))
+                    .attr("stroke", "#cccccc")
+                    .attr("stroke-width", 0);
+
+                connectingLine
+                    .data(groupCounts)
+                    .transition()
+                    .delay(1000)
+                    .duration(1000)
+                    .attr("x1", (d, i) => xScale(groupMidYear[i]))
+                    .attr("y1", (d, i) => yScale(groupAvgScores[i]))
+                    .attr("x2", (d, i) => {
+                        if (i < groupCounts.length - 1) {
+                            return xScale(groupMidYear[i + 1]);
+                        } else {
+                            return xScale(groupMidYear[i]);
+                        }
+                    })
+                    .attr("y2", (d, i) => {
+                        if (i < groupCounts.length - 1) {
+                            return yScale(groupAvgScores[i + 1]);
+                        } else {
+                            return yScale(groupAvgScores[i]);
+                        }
+                    })
+                    .attr("stroke", "#cccccc")
+                    .attr("stroke-width", 1);
+
+                // Add vertical line
+                const yearLine = svg.append("g")
+                    .selectAll("line")
+                    .data(groupMidYear)
+                    .join("line")
+                    .attr("class", "yearLine")
+                    .attr("x1", d => xScale(d))
+                    .attr("y1", 0)
+                    .attr("x2", d => xScale(d))
+                    .attr("y2", 0)
+                    .attr("stroke", "#7a7a7a")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "5 5");
+
+                yearLine
+                    .data(groupMidYear)
+                    .transition()
+                    .delay(1000)
+                    .duration(1000)
+                    .attr("x1", d => xScale(d))
+                    .attr("y1", 10)
+                    .attr("x2", d => xScale(d))
+                    .attr("y2", height / 2)
+                    .attr("stroke", "#7a7a7a")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "5 5");
+
+                // Add dots
+                const dot = svg.append("g")
+                    .selectAll("dot")
+                    .data(groupCounts)
+                    .join("circle")
+                    .attr("class", "dot")
+                    .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                    .attr("cy", yScale(averageScore))
+                    .attr("r", 0)
+                    .attr("fill", function (d, i) {
+                        return colorScale(groupAvgLikes[i]);
+                    })
+
+                if (isChecked == false) {
+                    dot
+                        .data(groupCounts)
+                        .transition()
+                        .delay(1000)
+                        .duration(1000)
+                        .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                        .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                        .attr("r", function (d, i) {
+                            return radiusScale(groupAvgBudgets[i]);
+                        })
+                        .attr("fill", function (d, i) {
+                            return colorScale(groupAvgLikes[i]);
+                        })
+                } else {
+                    dot
+                        .data(groupCounts)
+                        .transition()
+                        .delay(1000)
+                        .duration(1000)
+                        .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                        .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                        .attr("r", function (d, i) {
+                            return radiusScale(groupAvgGross[i]);
+                        })
+                        .attr("fill", function (d, i) {
+                            return colorScale(groupAvgLikes[i]);
+                        })
+                }
+                // Add center dots
+                const centerDot = svg.append("g")
+                    .selectAll("dot")
+                    .data(groupCounts)
+                    .join("circle")
+                    .attr("class", "centerDot")
+                    .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                    .attr("cy", yScale(averageScore))
+                    .attr("r", 0)
+                    .attr("fill", "#BBDEFB");
+
+                centerDot
+                    .data(groupCounts)
+                    .transition()
+                    .delay(1000)
+                    .duration(1000)
+                    .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                    .attr("cy", (d, i) => yScale(groupAvgScores[i]))
+                    .attr("r", "1")
+                    .attr("fill", "#BBDEFB");
+
+                // Add time label
+                const timeLabel = svg.append("g")
+                    .selectAll("text")
+                    .data(groupCounts)
+                    .join("text")
+                    .attr("class", "timeLabel")
+                    .attr("x", (d, i) => xScale(groupMidYear[i]))
+                    .attr("y", (d, i) => yScale(groupAvgScores[i]))
+                    .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "0px")
+                    .attr("fill", "#f9f9f9");
+
+                if (isChecked == false) {
+                    timeLabel
+                        .data(groupCounts)
+                        .transition()
+                        .delay(1000)
+                        .duration(1000)
+                        .attr("x", (d, i) => xScale(groupMidYear[i]))
+                        .attr("y", (d, i) => yScale(groupAvgScores[i]) - radiusScale(groupAvgBudgets[i]) - 10)
+                        .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "11px")
+                        .attr("fill", "#f9f9f9");
+                } else {
+                    timeLabel
+                        .data(groupCounts)
+                        .transition()
+                        .delay(1000)
+                        .duration(1000)
+                        .attr("x", (d, i) => xScale(groupMidYear[i]))
+                        .attr("y", (d, i) => yScale(groupAvgScores[i]) - radiusScale(groupAvgGross[i]) - 10)
+                        .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "11px")
+                        .attr("fill", "#f9f9f9");
+                }
+                // #endregion
+
+                // #region Hover interaction
+                d3.selectAll(".dot")
+                    .on("mouseover", function (event, d) {
+                        const midYearX = xScale((d.startYear + d.endYear) / 2);
+                        const hoverBudget = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverGross = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverFacebook = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const hoverImdb = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                        const movieCount = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear).length;
+                        console.log(movieCount);
+
+                        const startYear = d.startYear;
+                        const endYear = d.endYear;
+
+                        var checkboxes = document.querySelectorAll(".checkbox-container input[type='checkbox']:checked");
+                        var selectedGenres = [];
+                        checkboxes.forEach(function (checkbox) {
+                            selectedGenres.push(checkbox.value);
+                        });
+                        const genresParam = selectedGenres.map(genre => `genres[]=${encodeURIComponent(genre)}`).join('&')
+
+                        const url = `moviepics.php?startYear=${startYear}&endYear=${endYear}&${genresParam}`;
+
+                        d3.select(this)
+                            .attr("stroke-width", "1px")
+                            .attr("stroke", "#FAFAFA");
+
+                        if (isChecked == false) {
+                            hoverbox
+                                .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                    "<br>Budget: " + d3.mean(hoverBudget, r => r.budget).toFixed(0) +
+                                    "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                    `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                                )
+                                .style("font-size", "11px")
+                                .style("opacity", 0.9)
+                                .style("left", (midYearX + 3) + "px")
+                                .style("top", "110px");
+
+                        } else {
+                            hoverbox
+                                .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                    "<br>Gross: " + d3.mean(hoverGross, r => r.gross).toFixed(0) +
+                                    "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                    `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                                )
+                                .style("font-size", "11px")
+                                .style("opacity", 0.9)
+                                .style("left", (midYearX + 3) + "px")
+                                .style("top", "110px");
+                        }
+                    })
+                    .on("mouseout", function () {
+                        d3.select(this)
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .attr("stroke-width", "0px")
+                            .attr("stroke", "null");
+
+                        hoverbox
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+
+                hoverbox
+                    .on("mouseover", function () {
+                        hoverbox
+                            .transition()
+                            .duration(200)
+                            .style("opacity", 0.9);
+                    })
+                    .on("mouseleave", function () {
+                        hoverbox
+                            .transition()
+                            .delay(600)
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
+                // #endregion
+
+                // #region Word cloud
+                groupCounts.forEach((group, index) => {
+                    let groupData = data.filter(movie => movie.title_year >= group.startYear && movie.title_year <= group.endYear);
+                    let groupGenresFrequency = countGenresFrequency(groupData);
+                    let midYear = groupMidYear[index];
+                    let offsetY = 15;
+                    let maxFrequency = Array.from(groupGenresFrequency.values())[0];
+                    groupGenresFrequency.forEach((count, genre) => {
+                        let fontSize = 4 + 10 * (count / maxFrequency);
+                        const wordCloud = svg.append("text")
+                            .attr("class", "wordCloud")
+                            .attr("x", xScale(midYear))
+                            .attr("y", height / 2 + offsetY)
+                            .text(`${genre}`)
+                            .attr("text-anchor", "middle")
+                            .attr("font-size", 0)
+                            .attr("fill", "#a7a7a7")
+                            .style("opacity", "0");
+                        offsetY += fontSize + 2;
+
+                        wordCloud
+                            .transition()
+                            .delay(1000)
+                            .duration(1000)
+                            .attr("x", xScale(midYear))
+                            .attr("y", height / 2 + offsetY)
+                            .attr("font-size", fontSize + "px")
+                            .style("opacity", "1");
+                    });
+                });
+
+                /* Log at console for inspection
+                groupCounts.forEach(group => {
+                    let groupData = data.filter(movie => movie.title_year >= group.startYear && movie.title_year <= group.endYear);
+                    let groupGenresFrequency = countGenresFrequency(groupData);
+                    console.log(`Group ${group.startYear}-${group.endYear} Genres Frequency:`);
+                    groupGenresFrequency.forEach((count, genre) => {
+                        console.log(`${genre}: ${count}`);
+                    });
+                    console.log('\n');
+                });*/
+
+                // #endregion
+
+            }
+            // #endregion
+
+            // #region removeAnimation function
+            function removeAnimation(selectedGroup) {
+
+                // #region If selection
+                const startYear = 1927;
+                const endYear = d3.max(data, d => d.title_year);
+                const groupCounts = [];
+
+                if (selectedGroup == optionButton[0]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[1]) {
+                    for (let year = startYear; year <= endYear; year += 5) {
+                        const groupStart = year;
+                        const groupEnd = year + 4;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[2]) {
+                    for (let year = startYear; year <= endYear; year += 10) {
+                        const groupStart = year;
+                        const groupEnd = year + 9;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[3]) {
+                    for (let year = startYear; year <= endYear; year += 15) {
+                        const groupStart = year;
+                        const groupEnd = year + 14;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[4]) {
+                    for (let year = startYear; year <= endYear; year += 30) {
+                        const groupStart = year;
+                        const groupEnd = year + 29;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                } else if (selectedGroup == optionButton[5]) {
+                    for (let year = startYear; year <= endYear; year += 45) {
+                        const groupStart = year;
+                        const groupEnd = year + 44;
+                        const groupData = data.filter(d => d.title_year >= groupStart && d.title_year <= groupEnd);
+
+                        groupCounts.push({
+                            startYear: groupStart,
+                            endYear: groupEnd,
+                            count: groupData.length
+                        });
+                    }
+                }
+                // #endregion
+
+                // #region Compute value
+                // Compute average imdb score
+                const averageScore = d3.mean(data, d => d.imdb_score);
+                // Compute the x coordinate of each group
+                const groupMidYear = groupCounts.map(group => Math.floor((group.startYear + group.endYear) / 2));
+
+                // Compute the y coordinate of each group
+                const groupAvgScores = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.imdb_score);
+                });
+
+                // Compute average budget of each group
+                const groupAvgBudgets = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.budget);
+                });
+
+                // Compute average like of each group
+                const groupAvgLikes = groupCounts.map(group => {
+                    const groupData = data.filter(d => d.title_year >= group.startYear && d.title_year <= group.endYear);
+                    return d3.mean(groupData, d => d.movie_facebook_likes);
+                });
+                // #endregion
+
+                // #region Shrink Animation
+                d3.selectAll(".dot")
+                    .transition()
+                    .duration(1000)
+                    .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                    .attr("cy", yScale(averageScore))
+                    .attr("r", 0)
+                    .attr("fill", function (d, i) {
+                        return colorScale(groupAvgLikes[i]);
+                    })
+                d3.selectAll(".centerDot")
+                    .transition()
+                    .duration(1000)
+                    .attr("cx", (d, i) => xScale(groupMidYear[i]))
+                    .attr("cy", yScale(averageScore))
+                    .attr("r", 0)
+                    .attr("fill", "#BBDEFB");
+
+                d3.selectAll(".connectingLine")
+                    .transition()
+                    .duration(1000)
+                    .attr("x1", (d, i) => xScale(groupMidYear[i]))
+                    .attr("y1", yScale(averageScore))
+                    .attr("x2", (d, i) => {
+                        if (i < groupCounts.length - 1) {
+                            return xScale(groupMidYear[i + 1]);
+                        } else {
+                            return xScale(groupMidYear[i]);
+                        }
+                    })
+                    .attr("y2", yScale(averageScore))
+                    .attr("stroke", "#cccccc")
+                    .attr("stroke-width", 1)
+                    .attr("opacity", "0");;
+
+                d3.selectAll(".yearLine")
+                    .transition()
+                    .duration(1000)
+                    .attr("x1", d => xScale(d))
+                    .attr("y1", 0)
+                    .attr("x2", d => xScale(d))
+                    .attr("y2", 0)
+                    .attr("stroke", "#7a7a7a")
+                    .attr("stroke-width", 0)
+                    .attr("stroke-dasharray", "5 5");
+
+                d3.selectAll(".timeLabel")
+                    .transition()
+                    .duration(1000)
+                    .attr("x", (d, i) => xScale(groupMidYear[i]))
+                    .attr("y", (d, i) => yScale(groupAvgScores[i]))
+                    .text((d, i) => `${groupCounts[i].startYear} - ${groupCounts[i].endYear}`)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "0px")
+                    .attr("fill", "#f9f9f9");
+
+                d3.selectAll(".wordCloud")
+                    .transition()
+                    .duration(1000)
+                    .style("opacity", 0);
+                // #endregion
+
+                // #region Remove Data
+                d3.selectAll(".dot")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                d3.selectAll(".centerDot")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                d3.selectAll(".connectingLine")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                d3.selectAll(".timeLabel")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                d3.selectAll(".yearLine")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                d3.selectAll(".wordCloud")
+                    .transition()
+                    .delay(1000)
+                    .remove();
+                // #endregion
+            }
+            // #endregion
+
+            // #region genreFilter function
+            function genreFilter() {
+
+                // Get all the checked checkboxes
+                var checkboxes = document.querySelectorAll(".checkbox-container input[type='checkbox']:checked");
+
+                // Create an empty array to store the selected values
+                var selectedValues = [];
+
+                // Loop through the checked checkboxes and push their values to the selectedValues array
+                checkboxes.forEach(function (checkbox) {
+                    selectedValues.push(checkbox.value);
+                });
+
+                filteredData = data.filter(function (movie) {
+                    // Split the genres string into an array
+                    var genreArray = movie.genres.split("|");
+
+                    // Check if any of the selected genres are present in the movie's genres
+                    return selectedValues.some(function (genre) {
+                        return genreArray.includes(genre);
+                    });
+                });
+
+                //console.log("Selected values:", selectedValues);
+                //console.log("Filtered data:", filteredData);
+                //console.log(filteredData);
+                return filteredData
+
+            }
+            // #endregion 
+
+            // #region genreCheckbox function
+            function genreCheckbox() {
+
+            }
+            // #endregion
+
+            // #region Interactions
+            let previousOption = "10-year Scale";
+            let isChecked = false;
+            let newData = data;
+
+            d3.select("#selectButton")
+                .on("change", function (event, d) {
+                    const selectedOption = d3.select(this).property("value");
+                    //console.log("Previous option:", previousOption);
+                    removeAnimation(previousOption);
+                    yearSelection(selectedOption, isChecked, newData);
+                    previousOption = selectedOption;
+                });
+
+
+            d3.select("#toggle").on("change", function () {
+                isChecked = d3.select(this).property("checked");
+                grossSwitch(previousOption, isChecked, newData);
+                isChecked = isChecked;
+
+                // #region Switch label animation
+                if (isChecked == true) {
+                    switchLabel1.transition()
+                        .duration(500)
+                        .style("right", "0px")
+                        .style("opacity", 0);
+
+                    switchLabel2.transition()
+                        .duration(500)
+                        .style("right", "80px")
+                        .style("opacity", 1);
+                } else {
+                    switchLabel1.transition()
+                        .duration(500)
+                        .style("right", "80px")
+                        .style("opacity", 1);
+
+                    switchLabel2.transition()
+                        .duration(500)
+                        .style("right", "150px")
+                        .style("opacity", 0);
+                }
+                // #endregion
+            });
+
+            // Hoverbox Interaction
+            var hoverbox = d3.select("body").append("div")
+                .attr("class", "hoverbox")
+                .style("opacity", 0);
+
+            d3.selectAll(".dot")
+                .on("mouseover", function (event, d) {
+                    const midYearX = xScale((d.startYear + d.endYear) / 2);
+                    const hoverBudget = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                    const hoverGross = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                    const hoverFacebook = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                    const hoverImdb = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear);
+                    const movieCount = data.filter(r => r.title_year >= d.startYear && r.title_year <= d.endYear).length;
+                    console.log(movieCount);
+
+                    const startYear = d.startYear;
+                    const endYear = d.endYear;
+
+                    var checkboxes = document.querySelectorAll(".checkbox-container input[type='checkbox']:checked");
+                    var selectedGenres = [];
+                    checkboxes.forEach(function (checkbox) {
+                        selectedGenres.push(checkbox.value);
+                    });
+                    const genresParam = selectedGenres.map(genre => `genres[]=${encodeURIComponent(genre)}`).join('&')
+
+                    const url = `moviepics.php?startYear=${startYear}&endYear=${endYear}&${genresParam}`;
+
+                    d3.select(this)
+                        .attr("stroke-width", "1px")
+                        .attr("stroke", "#FAFAFA");
+
+                    if (isChecked == false) {
+                        hoverbox
+                            .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                "<br>Budget: " + d3.mean(hoverBudget, r => r.budget).toFixed(0) +
+                                "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                            )
+                            .style("font-size", "11px")
+                            .style("opacity", 0.9)
+                            .style("left", (midYearX + 3) + "px")
+                            .style("top", "110px");
+
+                    } else {
+                        hoverbox
+                            .html("Imdb Scores: " + d3.mean(hoverImdb, r => r.imdb_score).toFixed(0) +
+                                "<br>Gross: " + d3.mean(hoverGross, r => r.gross).toFixed(0) +
+                                "<br>FB Likes: " + d3.mean(hoverFacebook, r => r.movie_facebook_likes).toFixed(0) +
+                                `<br><br><a href="${url}" class="hoverLink">Read more</a>`
+                            )
+                            .style("font-size", "11px")
+                            .style("opacity", 0.9)
+                            .style("left", (midYearX + 3) + "px")
+                            .style("top", "110px");
+                    }
+                })
+                .on("mouseout", function () {
+
+                    d3.select(this)
+                        .transition()
+                        .delay(600)
+                        .duration(500)
+                        .attr("stroke-width", "0px")
+                        .attr("stroke", "null");
+
+                    hoverbox
+                        .transition()
+                        .delay(600)
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+            hoverbox
+                .on("mouseover", function () {
+                    hoverbox
+                        .transition()
+                        .duration(200)
+                        .style("opacity", 0.9);
+                })
+                .on("mouseleave", function () {
+                    hoverbox
+                        .transition()
+                        .delay(600)
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+
+            d3.select('#selectAll').on('change', function () {
+                const isChecked = d3.select(this).property('checked');
+                d3.selectAll('.checkbox').property('checked', isChecked);
+                if (isChecked) {
+                    d3.select('#unselectAll').property('checked', false);
+                }
+                newData = genreFilter();
+                removeAnimation(previousOption);
+                yearSelection(previousOption, isChecked, newData);
+            });
+
+            d3.select('#unselectAll').on('change', function () {
+                const isChecked = d3.select(this).property('checked');
+                if (isChecked) {
+                    d3.selectAll('.checkbox').property('checked', false);
+                    d3.select('#selectAll').property('checked', false);
+                }
+                newData = genreFilter();
+                removeAnimation(previousOption);
+                yearSelection(previousOption, isChecked, newData);
+            });
+
+            d3.selectAll('.checkbox').on('change', function () {
+                const allChecked = d3.selectAll('.checkbox').size() === d3.selectAll('.checkbox:checked').size();
+                const noneChecked = d3.selectAll('.checkbox:checked').size() === 0;
+                d3.select('#selectAll').property('checked', allChecked);
+                d3.select('#unselectAll').property('checked', noneChecked);
+                newData = genreFilter();
+                removeAnimation(previousOption);
+                yearSelection(previousOption, isChecked, newData);
+            });
+            // #endregion 
+
+        })
+    </script>
+
+</body>
+
+</html>
